@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudflare IP 优选工具</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☁️</text></svg>">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <span class="logo-icon">☁️</span>
+                <h1>Cloudflare IP 优选</h1>
+            </div>
+            <p class="subtitle">在线延迟测试 · 自动筛选最快 IP · 纯前端本地处理</p>
+        </header>
+
+        <main>
+            <section class="config-section card">
+                <h2>⚙️ 配置参数</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="domain">测试域名</label>
+                        <input type="text" id="domain" value="cdn.example.com" placeholder="用于测试的域名">
+                        <small>将用此域名测试 IP 连通性 <code>/cdn-cgi/trace</code></small>
+                    </div>
+                    <div class="form-group">
+                        <label for="testPort">测试端口</label>
+                        <select id="testPort">
+                            <option value="443">443 (HTTPS)</option>
+                            <option value="80">80 (HTTP)</option>
+                            <option value="2082">2082</option>
+                            <option value="2086">2086</option>
+                            <option value="8443">8443</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="pingCount">每 IP 测试次数</label>
+                        <select id="pingCount">
+                            <option value="1">1 次（快速）</option>
+                            <option value="2">2 次</option>
+                            <option value="3" selected>3 次（推荐）</option>
+                            <option value="5">5 次（准确）</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="timeout">超时时间 (ms)</label>
+                        <select id="timeout">
+                            <option value="1000">1000</option>
+                            <option value="2000" selected>2000（推荐）</option>
+                            <option value="3000">3000</option>
+                            <option value="5000">5000</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="maxResults">显示结果数</label>
+                        <select id="maxResults">
+                            <option value="5">5</option>
+                            <option value="10" selected>10（推荐）</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="concurrency">并发数</label>
+                        <select id="concurrency">
+                            <option value="10">10（保守）</option>
+                            <option value="20" selected>20（推荐）</option>
+                            <option value="50">50（激进）</option>
+                            <option value="100">100（极速）</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <section class="ip-source-section card">
+                <h2>📡 IP 数据源</h2>
+                <div class="tab-bar">
+                    <button class="tab-btn active" data-tab="preset">预设 IP 库</button>
+                    <button class="tab-btn" data-tab="custom">自定义 IP</button>
+                    <button class="tab-btn" data-tab="range">IP 段扫描</button>
+                </div>
+
+                <div class="tab-content active" id="tab-preset">
+                    <p class="tab-desc">从内置 Cloudflare IP 库中自动选择，覆盖主要 Anycast 节点。</p>
+                    <div class="preset-options">
+                        <label class="preset-radio">
+                            <input type="radio" name="preset" value="china-optimized" checked>
+                            <span class="preset-label">🌏 中国优化 (25 个 /16 段)</span>
+                        </label>
+                        <label class="preset-radio">
+                            <input type="radio" name="preset" value="global">
+                            <span class="preset-label">🌍 全球节点 (29 个 /16 段)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="tab-custom">
+                    <p class="tab-desc">手动输入要测试的 IP 列表（每行一个 IP 地址）。</p>
+                    <textarea id="customIps" rows="8" placeholder="例如：&#10;1.1.1.1&#10;1.0.0.1&#10;104.16.0.1&#10;104.16.1.1"></textarea>
+                </div>
+
+                <div class="tab-content" id="tab-range">
+                    <p class="tab-desc">输入 CIDR 网段进行扫描测试（大数据量时建议使用采样）。</p>
+                    <div class="range-inputs">
+                        <div class="form-group">
+                            <label for="cidrInput">CIDR 网段</label>
+                            <input type="text" id="cidrInput" placeholder="例如: 104.16.0.0/20">
+                        </div>
+                        <div class="form-group">
+                            <label for="sampleRate">采样比例</label>
+                            <select id="sampleRate">
+                                <option value="1.0">100% (全部)</option>
+                                <option value="0.5">50%</option>
+                                <option value="0.25">25%</option>
+                                <option value="0.1" selected>10%（推荐）</option>
+                                <option value="0.05">5%</option>
+                                <option value="0.01">1%</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="action-section">
+                <button id="startBtn" class="btn-primary">
+                    <span class="btn-icon">🚀</span>
+                    <span class="btn-text">开始测试</span>
+                </button>
+                <button id="stopBtn" class="btn-secondary" disabled>
+                    <span class="btn-icon">⏹</span>
+                    <span>停止</span>
+                </button>
+                <button id="exportBtn" class="btn-secondary" disabled>
+                    <span class="btn-icon">📥</span>
+                    <span>导出 CSV</span>
+                </button>
+            </section>
+
+            <section class="progress-section card" id="progressSection" style="display:none;">
+                <h2>⏳ 测试进度</h2>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <div class="progress-info">
+                    <span id="progressText">准备中...</span>
+                    <span id="progressStats">0 / 0</span>
+                </div>
+                <div class="log-container" id="logContainer">
+                    <div class="log-content" id="logContent"></div>
+                </div>
+            </section>
+
+            <section class="results-section card" id="resultsSection" style="display:none;">
+                <div class="results-header">
+                    <h2>📊 测试结果</h2>
+                    <div class="results-summary" id="resultsSummary"></div>
+                </div>
+                <div class="table-container">
+                    <table id="resultsTable">
+                        <thead>
+                            <tr>
+                                <th>排名</th>
+                                <th>IP 地址</th>
+                                <th>平均延迟</th>
+                                <th>最慢</th>
+                                <th>丢包率</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>☁️ Cloudflare IP 优选工具 · 纯前端实现，所有数据仅在浏览器本地处理，不会上传到服务器</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
